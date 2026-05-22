@@ -1,0 +1,214 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit config for auto-grading workshop Day 6 PRs (Backend).
+# Place this file in the ROOT of the backend project repository.
+
+language: "uk-UA"
+# max 250 chars (CodeRabbit schema)
+tone_instructions: "Ментор Day 6 (Backend) воркшопу. Українською: добрий тон, вимогливо. Перевір auth, Zod, RBAC, тести, секрети, типові помилки AI. Статуси: ✅ ок, ⚠️ частково, ❌ ні."
+
+early_access: false
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  changed_files_summary: true
+  sequence_diagrams: false
+
+  auto_review:
+    enabled: true
+    drafts: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+    base_branches:
+      - ".*"
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "renovate[bot]"
+      - "github-actions[bot]"
+
+  # ── File filters ──────────────────────────────────────────────
+  path_filters:
+    - "app/api/**"
+    - "lib/**"
+    - "tests/**"
+    - "drizzle/**"
+    - "docs/**"
+    - "AGENTS.md"
+    - "CLAUDE.md"
+    - ".github/workflows/**"
+    - ".env.example"
+    - ".cursor/mcp.json"
+    - ".cursor/mcp.json.example"
+    - "!node_modules/**"
+    - "!.next/**"
+    - "!build/**"
+    - "!coverage/**"
+    - "!*.lock"
+    - "!package-lock.json"
+
+  # ── Path-specific review instructions ─────────────────────────
+  path_instructions:
+    - path: "app/api/**/route.ts"
+      instructions: |
+        Це Next.js Route Handler — обов'язкова перевірка для Day 6.
+        Перевір КОЖНУ мутацію (POST / PATCH / PUT / DELETE):
+        1. Викликає `requireSession()` або `requireRole(...)` ДО будь-якого запису в DB.
+        2. Парсить тіло запиту через Zod (`safeParse` / `.parse`) — НЕ `await req.json()` напряму в DB.
+        3. НЕ використовує `body.userId` чи будь-який `userId` з клієнта — тільки `session.user.id`.
+        4. Помилки повертаються через `lib/errors.ts` (`unauthorized`, `forbidden`, `notFound`, `badRequest`) —
+           НЕ викидає сирі stack traces, SQL чи внутрішні повідомлення.
+        5. Має try/catch, який ловить `Response` через `isResponse(e)` і повертає його як є.
+        6. ЖОДНОГО `console.log(session)` / `console.log(user)` / `console.log(body)`.
+        7. Для GET-списків — наявна пагінація (limit + offset або cursor), max 100 елементів.
+        Оціни: ✅ всі 7 пунктів виконані / ⚠️ 1-2 порушення / ❌ немає auth або validation на мутації.
+
+    - path: "app/api/**/*action*.ts"
+      instructions: |
+        Server Actions (`'use server'`) — це публічні ендпоінти.
+        Перевір такі самі правила, як для route handlers (auth + Zod + НЕ body.userId).
+        Якщо action виглядає внутрішнім — це ілюзія: його URL генерується Next.js, і його МОЖНА викликати ззовні.
+
+    - path: "lib/db/schema.ts"
+      instructions: |
+        Drizzle schema — джерело істини для DB.
+        Перевір:
+        1. Жодних `.notNull()` на полях, які генерує BetterAuth із дефолтами без міграції-бекфілу.
+        2. Усі `references(() => ...)` мають явний `onDelete` (`cascade` / `set null` / `restrict`).
+        3. `id` колонки — `text` з UUID/nanoid або `serial`. НЕ purely autoincrement без `default`.
+        4. На зовнішніх ключах рекомендуються індекси для частих join-ів.
+        5. Чутливі колонки (`password`, токени) — НЕ повертаються з API напряму.
+
+    - path: "lib/validation/*.ts"
+      instructions: |
+        Zod-схеми. Перевір:
+        1. Усі рядки мають `.min()` і `.max()` (захист від payload-bomb / порожніх значень).
+        2. Числа з зовнішнього JSON використовують `z.coerce.number()` (запити приходять як string).
+        3. Booleans з querystring — теж через `.coerce.boolean()`.
+        4. Кожна схема експортує `z.infer<typeof ...>` тип для повторного використання на клієнті.
+
+    - path: "lib/auth.ts"
+      instructions: |
+        Better Auth config. Перевір:
+        1. `secret` береться з validated env (НЕ `process.env.X!` напряму).
+        2. `baseURL` теж із env.
+        3. `session.expiresIn` — реалістичний (1d-30d).
+        4. Якщо OAuth провайдери — їхні secret-и через env, ніяких літералів.
+
+    - path: "lib/env.ts"
+      instructions: |
+        Env validation. Перевір:
+        1. Усі обов'язкові змінні з `.env.example` присутні в Zod-схемі.
+        2. `BETTER_AUTH_SECRET` має `.min(32)`.
+        3. URL-и — через `.url()`.
+        4. Помилка валідації НЕ ховається (throw on parse failure).
+
+    - path: ".env.example"
+      instructions: |
+        Перевір:
+        1. ЖОДНИХ реальних секретів — тільки placeholder-и (e.g. `REPLACE_ME`, `your-secret-here`).
+        2. Усі змінні з `lib/env.ts` присутні тут.
+        3. Коментарі пояснюють, де взяти значення (Vercel Marketplace, openssl rand, ...).
+
+    - path: "tests/**/*.test.ts"
+      instructions: |
+        Vitest tests. Перевір наявність як мінімум:
+        1. Happy path для основного ендпоінту.
+        2. Unauthorized path (401) для будь-якої мутації.
+        3. Validation failure path (400) для невалідного тіла.
+        Якщо хоча б 2 з 3 відсутні — ⚠️.
+
+    - path: "drizzle/*.sql"
+      instructions: |
+        Згенерована міграція. Перевір ВЛАСНИМИ ОЧИМА:
+        1. Чи `DROP COLUMN` / `DROP TABLE` НЕ йде без коментаря-обґрунтування?
+        2. Чи нові `NOT NULL` колонки мають `DEFAULT` або backfill-крок?
+        3. Чи foreign keys мають правильний `ON DELETE`?
+        Цю міграцію застосує prod — це one-way operation.
+
+    - path: ".cursor/mcp.json.example"
+      instructions: |
+        MCP конфіг. Перевір:
+        1. Валідний JSON з `mcpServers`.
+        2. ЖОДНИХ літеральних секретів — тільки `${env:VAR}`.
+        3. `filesystem` обмежений директоріями репо (`./app`, `./lib`, `./docs`) — НЕ `/` чи `~`.
+        4. Версії запіновані (`@1.2.3`), а не `@latest`.
+        5. Чутливі сервери (vercel, github з write-scope, postgres) мають `"disabled": true` за замовчуванням.
+
+  # ── Pre-merge checks (grading criteria) ───────────────────────
+  pre_merge_checks:
+    title:
+      mode: "warning"
+      requirements: >
+        PR title should describe the backend change in English or Ukrainian.
+        Examples: "feat(posts): add owner-only PATCH", "Day 6: <participant> — Backend Workshop".
+
+    description:
+      mode: "warning"
+
+    custom_checks:
+      - mode: "warning"
+        name: "Auth inside every mutation"
+        instructions: >
+          For every route handler exporting POST / PATCH / PUT / DELETE under `app/api/**/route.ts`,
+          verify that `requireSession()` or `requireRole(...)` is called BEFORE any DB write.
+          For every Server Action (`"use server"`), verify the same.
+          PASS if all mutations are auth-gated. FAIL if any mutation hits the DB without an auth check.
+
+      - mode: "warning"
+        name: "Zod validation on every input"
+        instructions: >
+          For every endpoint that reads `req.json()` or `req.url`'s search params, verify that the
+          input passes through a Zod schema (`safeParse` / `.parse`) before being used.
+          PASS if all inputs are validated. FAIL if any handler shoves raw JSON into the DB.
+
+      - mode: "warning"
+        name: "No client-supplied userId in writes"
+        instructions: >
+          Grep `app/api/**/route.ts` and `app/**/actions.ts` for `body.userId`, `data.userId`,
+          `params.userId` used as the OWNER of a created/updated resource. The owner must always
+          come from `session.user.id`.
+          PASS if no such pattern exists. FAIL otherwise — this is an IDOR vulnerability.
+
+      - mode: "warning"
+        name: "Env vars validated via Zod"
+        instructions: >
+          Check that `lib/env.ts` exists, parses `process.env` with Zod, and that the rest of the
+          code imports `env` from it (NOT `process.env.X!` directly).
+          PASS if `lib/env.ts` exists and no `process.env.X!` calls in lib/app code outside of it.
+          FAIL otherwise.
+
+      - mode: "warning"
+        name: "Tests cover happy + unauthorized + validation paths"
+        instructions: >
+          Check `tests/**`. For at least one route, there should be:
+          1. A happy-path test (or unit-level equivalent).
+          2. A 401/unauthorized test.
+          3. A 400/validation-failure test.
+          PASS if all three exist for at least one route or equivalent helpers. FAIL if 0-1 exists.
+
+      - mode: "warning"
+        name: "No secrets in committed files"
+        instructions: >
+          Scan `.env.example`, `.cursor/mcp.json.example`, `vercel.json`, `.github/workflows/*` for
+          anything that looks like a real secret (long base64, JWTs, `sk_live_`, AWS keys, etc.).
+          PASS if only placeholders are present.
+          FAIL if a real secret leaked — flag it and tell the author to rotate immediately.
+
+      - mode: "warning"
+        name: "CI workflow present and green"
+        instructions: >
+          Check `.github/workflows/ci.yml` exists and runs lint / typecheck / test / build.
+          PASS if the workflow is present and the latest run on this PR is green.
+          FAIL if the workflow is missing or the latest run is red.
+
+chat:
+  auto_reply: true

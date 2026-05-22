@@ -1,0 +1,46 @@
+{
+  "_README": [
+    "Copy this file to `.cursor/mcp.json` (gitignored) and edit as needed.",
+    "Pin versions, scope filesystem roots, inject secrets via ${env:VAR}.",
+    "Disable any server you are not actively using with \"disabled\": true."
+  ],
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem@2025.10.20",
+        "./app",
+        "./lib",
+        "./tests",
+        "./docs",
+        "./drizzle"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github@latest"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${env:GH_PAT}" },
+      "disabled": true
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres@latest",
+        "${env:DATABASE_URL_UNPOOLED}"
+      ],
+      "disabled": true
+    },
+    "vercel": {
+      "command": "npx",
+      "args": ["-y", "@vercel/mcp@latest"],
+      "env": { "VERCEL_TOKEN": "${env:VERCEL_TOKEN}" },
+      "disabled": true
+    }
+  }
+}

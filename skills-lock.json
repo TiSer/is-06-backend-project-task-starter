@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md"
+    },
+    "reviewing-backend-changes": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": ".agents/skills/reviewing-backend-changes/SKILL.md"
+    }
+  }
+}
