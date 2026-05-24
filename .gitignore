@@ -45,3 +45,4 @@ next-env.d.ts
 
 # cursor mcp config (may contain secrets — only the .example is committed)
 .cursor/mcp.json
+.env*

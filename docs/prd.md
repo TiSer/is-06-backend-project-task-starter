@@ -18,9 +18,9 @@
 
 ---
 
-## What you're building (backend)
+## Scope (backend)
 
-A REST API for **track-day sessions**: one row per visit to a circuit (track, title, lap stats, date). Authenticated users create and update **their own** rows; **admins** hard-delete any row. Anonymous users may list/read **published** rows only (homework `publishedOnly` filter).
+REST API for **track-day sessions**: one row per circuit visit (track, title, lap stats, date). Authenticated principals create and update rows where `authorId` matches the session user. Admins hard-delete any row. Anonymous clients list/read rows with `published === true` only, subject to list rules in [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 **Entity + owner + admin:**
 
@@ -70,12 +70,9 @@ A REST API for **track-day sessions**: one row per visit to a circuit (track, ti
 | PATCH | `/api/v1/track_sessions/:id` | **session + owner** | `UpdateTrackSession` | `TrackSession` |
 | DELETE | `/api/v1/track_sessions/:id` | **session + admin** | — | **204** |
 
-**List behavior:**
+**List behavior (v1):** defined in [`ARCHITECTURE.md`](./ARCHITECTURE.md) → List filters.
 
-- No cookie: return only rows where `published === true` (ignore private rows).
-- With cookie: return all rows for the homework list endpoint unless you add `publishedOnly=true` to filter (recommended: when `publishedOnly=true`, filter `published`; when absent and authenticated, return owner's rows + published others, or keep v1 simple: **authenticated list returns only `authorId = me`** + optional `publishedOnly` for public slice — document in ARCHITECTURE).
-
-**v1 list rule (simple):**
+**Summary:**
 
 - Anonymous: `published === true` only.
 - Authenticated, no `publishedOnly`: all rows where `authorId = session.user.id`.

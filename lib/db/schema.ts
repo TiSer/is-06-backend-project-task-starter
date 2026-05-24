@@ -1,5 +1,8 @@
 import {
   boolean,
+  date,
+  index,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -66,20 +69,30 @@ export const verification = pgTable("verification", {
 export type User = typeof user.$inferSelect;
 
 // =============================================================================
-// Your domain tables — define these for the homework.
-// Example reference uses a `post` table with `authorId` FK to `user.id`.
-// Yours can be anything — `note`, `task`, `quote`, `book`, ... — as long as it
-// has owner-only mutations and at least one Zod-validated input field.
+// Domain — track_session (REST: /api/v1/track_sessions)
 // =============================================================================
 
-// export const post = pgTable("post", {
-//   id: text("id").primaryKey(),
-//   authorId: text("author_id")
-//     .notNull()
-//     .references(() => user.id, { onDelete: "cascade" }),
-//   title: text("title").notNull(),
-//   body: text("body").notNull(),
-//   published: boolean("published").notNull().default(false),
-//   createdAt: timestamp("created_at").notNull().defaultNow(),
-//   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-// });
+export const trackSession = pgTable(
+  "track_session",
+  {
+    id: text("id").primaryKey(),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    trackId: text("track_id").notNull(),
+    title: text("title").notNull(),
+    lapCount: integer("lap_count").notNull(),
+    averageLap: text("average_lap").notNull(),
+    sessionDate: date("session_date").notNull(),
+    published: boolean("published").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("track_session_author_id_idx").on(table.authorId),
+    index("track_session_published_idx").on(table.published),
+  ],
+);
+
+export type TrackSession = typeof trackSession.$inferSelect;
+export type NewTrackSession = typeof trackSession.$inferInsert;
