@@ -1,95 +1,227 @@
-# Product Requirements — `<your-project-name>`
+# Product Requirements — Ninja Track Racing (Day 6 backend)
 
-> **Fill this in before writing any code.** This file is the single source of truth for the AI agent. Vague intent here turns into wrong code there.
+> **Single source of truth for the API.** Backend contract first; Day 5 UI alignment second. Do not implement route handlers until this file and [`ARCHITECTURE.md`](./ARCHITECTURE.md) match.
 
 ---
 
-## What you're building
+## Domain (naming)
 
-> One paragraph. What is the resource? Who creates it? Who reads it? What is the smallest useful slice you can ship in a few hours?
+| Layer | Name | Notes |
+| ----- | ---- | ----- |
+| REST collection | `track_sessions` | All routes under `/api/v1/track_sessions` |
+| Route files | `app/api/v1/track_sessions/` | `route.ts` + `[id]/route.ts` |
+| Zod module | `lib/validation/track_sessions.ts` | `createTrackSessionSchema`, etc. |
+| DB table | `track_session` | Singular SQL table; Drizzle export `trackSession` |
+| Auth `session` table | `session` | **Better Auth only** — not our domain entity |
 
-_Example: "A small Notes API. Authenticated users can create text notes, list their own notes, edit them, delete them. Admins can hard-delete any note. No sharing, no folders, no tags — those come later."_
+**Not stored on the row:** `bestLap` — derived dynamically (from per-lap data when that exists, or client/UI logic until then). Homework v1 stores `lapCount` + `averageLap` only.
 
-TODO
+---
+
+## What you're building (backend)
+
+A REST API for **track-day sessions**: one row per visit to a circuit (track, title, lap stats, date). Authenticated users create and update **their own** rows; **admins** hard-delete any row. Anonymous users may list/read **published** rows only (homework `publishedOnly` filter).
+
+**Entity + owner + admin:**
+
+| Concept | Implementation |
+| ------- | -------------- |
+| **Entity** | `track_session` row |
+| **Owner** | `authorId` = `session.user.id` on create; never from request body |
+| **Admin** | `user.role === 'admin'` for `DELETE` any row |
 
 ---
 
 ## For whom
 
-- TODO — primary persona (e.g. "single user keeping personal notes").
-- TODO — secondary persona, if any (e.g. "admin moderating reported notes").
+- **Rider (`user`)** — logs personal track days; creates/updates own `track_session` rows; lists published sessions from everyone.
+- **Admin** — same as user, plus `DELETE` on any `track_session` (moderation / hard delete).
 
 ---
 
-## Constraints (copy these — do not loosen)
+## Constraints (non-negotiable)
 
-- **Auth inside every mutation** — `requireSession()` (or `requireRole('admin')`) called before any `db.insert/update/delete`.
-- **Zod on every input** — request body and query string parsed with `safeParse` before touching the DB.
-- **Owner from session, never from body** — `<ownerColumn> = session.user.id`. Never `body.userId`.
-- **Pagination on list endpoints** — `limit` capped at 100, default 20.
-- **Typed errors** — every failure routes through `lib/errors.ts`.
+- **Auth inside every mutation** — `requireSession()` or `requireRole('admin')` before any `db.insert` / `update` / `delete`.
+- **Zod on every input** — body and query via `safeParse`; `badRequest()` on failure.
+- **Owner from session** — `authorId = session.user.id`; never `body.authorId` / `body.userId`.
+- **Pagination on list** — `limit` default `20`, max `100`; `offset` default `0`.
+- **Typed errors** — `lib/errors.ts` only in route handlers.
 
 ---
 
 ## Endpoints
 
-> Replace `<resource>` with your resource name (lowercase, singular, e.g. `note`, `task`, `quote`).
+### Already wired (do not break)
 
-| Method | Path                          | Auth              | Body                | Returns                                       |
-| ------ | ----------------------------- | ----------------- | ------------------- | --------------------------------------------- |
-| GET    | `/api/health`                 | public            | —                   | `{ status, db, latencyMs }` (already wired)   |
-| POST   | `/api/auth/sign-up/email`     | public            | `{ email, password, name? }` | session cookie + user (already wired) |
-| POST   | `/api/auth/sign-in/email`     | public            | `{ email, password }` | session cookie + user (already wired)       |
-| POST   | `/api/auth/sign-out`          | session           | —                   | 200 (already wired)                           |
-| GET    | `/api/v1/<resource>`          | optional          | —                   | `{ items: <Resource>[], limit, offset }`      |
-| POST   | `/api/v1/<resource>`          | session           | `Create<Resource>`  | `<Resource>` (201)                            |
-| GET    | `/api/v1/<resource>/:id`      | optional          | —                   | `<Resource>`                                  |
-| PATCH  | `/api/v1/<resource>/:id`      | session + owner   | `Update<Resource>`  | `<Resource>`                                  |
-| DELETE | `/api/v1/<resource>/:id`      | session + admin   | —                   | 204                                           |
+| Method | Path | Auth | Returns |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/health` | public | `{ status, db, latencyMs }` |
+| POST | `/api/auth/sign-up/email` | public | session cookie + user |
+| POST | `/api/auth/sign-in/email` | public | session cookie + user |
+| POST | `/api/auth/sign-out` | session | `200` |
+
+### Domain — `track_sessions` (to implement)
+
+| Method | Path | Auth | Body / query | Returns |
+| ------ | ---- | ---- | ------------ | ------- |
+| GET | `/api/v1/track_sessions` | optional | Query: `limit`, `offset`, `publishedOnly?` | `{ items: TrackSession[], limit, offset }` |
+| POST | `/api/v1/track_sessions` | **session** | `CreateTrackSession` | `TrackSession` **201** |
+| GET | `/api/v1/track_sessions/:id` | optional | — | `TrackSession` |
+| PATCH | `/api/v1/track_sessions/:id` | **session + owner** | `UpdateTrackSession` | `TrackSession` |
+| DELETE | `/api/v1/track_sessions/:id` | **session + admin** | — | **204** |
+
+**List behavior:**
+
+- No cookie: return only rows where `published === true` (ignore private rows).
+- With cookie: return all rows for the homework list endpoint unless you add `publishedOnly=true` to filter (recommended: when `publishedOnly=true`, filter `published`; when absent and authenticated, return owner's rows + published others, or keep v1 simple: **authenticated list returns only `authorId = me`** + optional `publishedOnly` for public slice — document in ARCHITECTURE).
+
+**v1 list rule (simple):**
+
+- Anonymous: `published === true` only.
+- Authenticated, no `publishedOnly`: all rows where `authorId = session.user.id`.
+- Authenticated, `publishedOnly=true`: `published === true` (any author).
+
+---
+
+## Data model — `track_session`
+
+| Column | Type | Notes |
+| ------ | ---- | ----- |
+| `id` | `text` PK | `nanoid()`, server-generated |
+| `authorId` | `text` FK → `user.id` | `onDelete: cascade` |
+| `trackId` | `text` | slug, e.g. `dniprokart`; 1–64 chars |
+| `title` | `text` | display title, 1–200 chars |
+| `lapCount` | `integer` | ≥ 0 |
+| `averageLap` | `text` | display format, e.g. `1:06.4`; 1–16 chars |
+| `sessionDate` | `date` or `text` | calendar day of track day (ISO `YYYY-MM-DD` in JSON) |
+| `published` | `boolean` | default `false` |
+| `createdAt` | `timestamp` | server default `now()` |
+| `updatedAt` | `timestamp` | bumped on PATCH |
 
 ---
 
 ## Request / response shapes
 
 ```ts
-// Create<Resource>Body  (lib/validation/<resource>.ts → create<Resource>Schema)
+// lib/validation/track_sessions.ts
+
+// CreateTrackSession (POST body) — no authorId, no bestLap
 {
-  // TODO — define your fields here.
-  // Example:
-  // title: string,     // 1..200
-  // body:  string,     // 1..50_000
+  trackId: string;      // 1..64, slug
+  title: string;        // 1..200
+  lapCount: number;     // int, >= 0
+  averageLap: string;   // 1..16, e.g. "1:06.4"
+  sessionDate: string;  // ISO date YYYY-MM-DD
+  published?: boolean;  // default false
 }
 
-// Update<Resource>Body — Partial<Create<Resource>Body>, at least one key.
+// UpdateTrackSession (PATCH body) — partial, at least one key
+Partial<CreateTrackSession>
 
-// <Resource>  (lib/db/schema.ts → <Resource>)
+// List query (GET collection)
 {
-  id: string,                // nanoid
-  // TODO — your fields
-  authorId: string,          // FROM session — never from body
-  createdAt: string,         // ISO
-  updatedAt: string
+  limit?: number;       // default 20, max 100
+  offset?: number;      // default 0
+  publishedOnly?: boolean; // string "true" in query → coerced
 }
 
-// Error envelope (lib/errors.ts) — already defined
-{ error: 'Unauthorized' | 'Forbidden' | 'NotFound' | 'BadRequest' | 'InternalServerError', detail?: unknown }
+// TrackSession (JSON response)
+{
+  id: string;
+  authorId: string;
+  trackId: string;
+  title: string;
+  lapCount: number;
+  averageLap: string;
+  sessionDate: string;  // ISO date
+  published: boolean;
+  createdAt: string;    // ISO datetime
+  updatedAt: string;
+}
+
+// List response
+{
+  items: TrackSession[];
+  limit: number;
+  offset: number;
+}
+
+// Error envelope (lib/errors.ts)
+{ error: "Unauthorized" | "Forbidden" | "NotFound" | "BadRequest" | "InternalServerError"; detail?: unknown }
 ```
 
+### Example — create
+
+```http
+POST /api/v1/track_sessions
+Cookie: better-auth.session=...
+Content-Type: application/json
+
+{
+  "trackId": "dniprokart",
+  "title": "DniproKart — May 18",
+  "lapCount": 12,
+  "averageLap": "1:06.4",
+  "sessionDate": "2026-05-18",
+  "published": false
+}
+```
+
+→ `201` + `TrackSession` with `authorId` set from cookie, not body.
+
 ---
 
-## Non-goals
+## RBAC summary
 
-> Things you are explicitly _not_ shipping. Naming them is a forcing function — it stops the agent from "helpfully" building them.
-
-- TODO — e.g. "no sharing between users"
-- TODO — e.g. "no rate limiting (handled at edge later)"
-- TODO — e.g. "no file uploads"
+| Action | Rule |
+| ------ | ---- |
+| POST | `requireSession()` |
+| PATCH | `requireSession()` + `isOwner(session, row.authorId)` |
+| DELETE | `requireRole(req, 'admin')` |
+| GET list / GET by id | public; unpublished rows hidden from anonymous clients |
 
 ---
 
-## Acceptance
+## Non-goals (homework v1)
 
-- `npm run lint && npm run typecheck && npm run test && npm run build` — all four green.
-- All CodeRabbit pre-merge checks `✅` or explicitly justified in a PR comment.
-- `/api/health` returns 200 from the Vercel preview deploy.
-- At least one passing test per route handler covering: happy path, 401, 400 (and 403 for owner-only routes).
+- No `bestLap` column — computed elsewhere when per-lap API exists.
+- No `lap_time` / per-lap child table in v1.
+- No gallery / photo API.
+- No tracks catalog API (track metadata stays in `lib/data.ts` for now).
+- No wiring dashboard UI to API in this PR (optional follow-up).
+- No rate limiting, no audit log.
+- No renaming Better Auth `session` table.
+
+---
+
+## Acceptance (backend PR)
+
+- `docs/prd.md` and `docs/ARCHITECTURE.md` complete and consistent.
+- Migration generated under `drizzle/` for `track_session`.
+- Five handlers under `app/api/v1/track_sessions/`.
+- ≥ 3 Vitest tests: happy POST, 401 on POST, 400 on POST; 403 on PATCH as other user.
+- `npm run lint && npm run typecheck && npm run test && npm run build` — all green.
+- CodeRabbit pre-merge checks addressed.
+- Vercel preview: `/api/health` → 200.
+
+---
+
+## Frontend alignment (reference only)
+
+Day 5 UI and mocks — **not** the API contract. Use when wiring UI later.
+
+| Frontend | Location | Maps to backend |
+| -------- | -------- | ---------------- |
+| Product / Figma | [`FRONTEND-PRD.md`](./FRONTEND-PRD.md), [`DESIGN.md`](./DESIGN.md) | Visual tokens, pages |
+| Mock `Session` type | `lib/data.ts` → `sessions[]` | `trackId`, `title`, `lapCount`, `averageLap`, `date` → `sessionDate` |
+| Dashboard “Track sessions” | `app/dashboard/page.tsx` | `GET /api/v1/track_sessions` (auth: own rows) |
+| “+ New Session” button | links to `/records` today | future: form → `POST /api/v1/track_sessions` |
+| Lap table “best lap” column | `lib/data.ts` → `lapTimes[]` | **not** `track_session`; separate future `lap_time` resource or client-side derive |
+| Tracks list | `lib/data.ts` → `tracks[]` | static until tracks API exists |
+
+Example mock row (frontend `date` → API `sessionDate`):
+
+```ts
+// lib/data.ts (mock)
+{ id: "s24", trackId: "dniprokart", title: "DniproKart — May 18", lapCount: 12, averageLap: "1:06.4", date: "May 18" }
+```

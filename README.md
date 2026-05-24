@@ -33,6 +33,24 @@ Pick one resource (notes / tasks / quotes / recipes / books / bookmarks / sessio
 
 ---
 
+## Merged Day 5 frontend (Ninja Track Racing)
+
+This repo combines the **is-06 backend starter** with **is-05 frontend** (`Ninja Track Racing`):
+
+| Area | Location |
+| ---- | -------- |
+| UI pages | `/`, `/dashboard`, `/records`, `/gallery` |
+| Components | `components/` (shadcn + racing UI) |
+| Mock data (replace with API) | `lib/data.ts` |
+| Backend API (your homework) | `app/api/v1/<resource>/` (TODO) |
+| Auth + DB (wired) | `app/api/auth/`, `app/api/health`, `lib/db/`, `lib/auth.ts` |
+
+Product/design docs: `docs/FRONTEND-PRD.md`, `docs/DESIGN.md`. API brief: `docs/prd.md`.
+
+The nested `is-05-frontend-task/` folder is gitignored — you can delete it locally after verifying the merge.
+
+---
+
 ## Quick start
 
 ```bash
