@@ -103,6 +103,10 @@ export async function PATCH(req: Request, context: RouteContext) {
       .where(eq(trackSession.id, loaded.row.id))
       .returning();
 
+    if (!row) {
+      return notFound("Track session");
+    }
+
     return Response.json(serializeTrackSession(row));
   } catch (error) {
     if (isResponse(error)) return error;

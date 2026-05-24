@@ -42,7 +42,7 @@ This repo combines the **is-06 backend starter** with **is-05 frontend** (`Ninja
 | UI pages | `/`, `/dashboard`, `/records`, `/gallery` |
 | Components | `components/` (shadcn + racing UI) |
 | Mock data (replace with API) | `lib/data.ts` |
-| Backend API (your homework) | `app/api/v1/<resource>/` (TODO) |
+| Backend API | `app/api/v1/track_sessions/` |
 | Auth + DB (wired) | `app/api/auth/`, `app/api/health`, `lib/db/`, `lib/auth.ts` |
 
 Product/design docs: `docs/FRONTEND-PRD.md`, `docs/DESIGN.md`. API brief: `docs/prd.md`.

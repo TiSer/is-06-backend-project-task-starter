@@ -23,7 +23,7 @@ export function AppHeader({
       <span className="text-sm font-extrabold tracking-wide text-primary uppercase">
         Ninja
       </span>
-      {showMenu && (
+      {showMenu && onMenuClick != null && (
         <Button
           type="button"
           variant="ghost"

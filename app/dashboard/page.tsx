@@ -6,7 +6,8 @@ import { SectionHeader } from "@/components/section-header";
 import { SessionCard } from "@/components/session-card";
 import { StatCard } from "@/components/stat-card";
 import { TrackCard } from "@/components/track-card";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { heroStats, lapTimes, sessions, tracks } from "@/lib/data";
 
@@ -59,13 +60,12 @@ export default function DashboardPage() {
               Session history and personal bests across your track days.
             </p>
           </div>
-          <Button
-            nativeButton={false}
-            render={<Link href="/records" />}
-            variant="secondary"
+          <Link
+            href="/records"
+            className={cn(buttonVariants({ variant: "secondary" }))}
           >
             + New Session
-          </Button>
+          </Link>
         </div>
 
         <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-8">

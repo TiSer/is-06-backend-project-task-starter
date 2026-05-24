@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -91,6 +93,10 @@ export const trackSession = pgTable(
   (table) => [
     index("track_session_author_id_idx").on(table.authorId),
     index("track_session_published_idx").on(table.published),
+    check(
+      "track_session_lap_count_non_negative",
+      sql`${table.lapCount} >= 0`,
+    ),
   ],
 );
 

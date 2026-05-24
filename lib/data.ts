@@ -132,8 +132,19 @@ export const galleryPhotos: GalleryPhoto[] = [
 /** High-quality delivery for next/image (sources are ~682px wide). */
 export const galleryImageQuality = 90;
 
+function lapTimeToSeconds(lap: string): number {
+  const [minutes, seconds] = lap.split(":").map(Number);
+  return minutes * 60 + seconds;
+}
+
 export const heroStats = {
-  bestLap: "1:04.2",
-  sessions: "24",
-  tracks: "5",
+  bestLap: lapTimes.reduce(
+    (best, row) =>
+      lapTimeToSeconds(row.bestLap) < lapTimeToSeconds(best)
+        ? row.bestLap
+        : best,
+    lapTimes[0]?.bestLap ?? "—",
+  ),
+  sessions: String(sessions.length),
+  tracks: String(tracks.length),
 };

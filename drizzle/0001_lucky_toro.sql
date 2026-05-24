@@ -1,0 +1,1 @@
+ALTER TABLE "track_session" ADD CONSTRAINT "track_session_lap_count_non_negative" CHECK ("track_session"."lap_count" >= 0);
