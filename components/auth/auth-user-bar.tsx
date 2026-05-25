@@ -20,10 +20,24 @@ export function AuthUserBar({
 }: AuthUserBarProps) {
   const { data: session, isPending } = authClient.useSession();
   const [authOpen, setAuthOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [signOutPending, setSignOutPending] = useState(false);
 
   async function handleSignOut() {
-    await authClient.signOut();
-    onSessionChange?.();
+    setSignOutError(null);
+    setSignOutPending(true);
+    try {
+      const result = await authClient.signOut();
+      if (result.error) {
+        setSignOutError(result.error.message ?? "Sign out failed");
+        return;
+      }
+      onSessionChange?.();
+    } catch {
+      setSignOutError("Sign out failed. Try again.");
+    } finally {
+      setSignOutPending(false);
+    }
   }
 
   const isHeader = layout === "header";
@@ -67,23 +81,40 @@ export function AuthUserBar({
   const label =
     session.user.name ?? session.user.email ?? "Signed in";
 
+  const signOutButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={() => void handleSignOut()}
+      disabled={signOutPending}
+    >
+      {signOutPending ? "Signing out…" : "Sign out"}
+    </Button>
+  );
+
   if (isHeader) {
     return (
       <div
         className={cn(
-          "flex max-w-[min(100%,280px)] items-center gap-2 sm:max-w-none",
+          "flex max-w-[min(100%,280px)] flex-col items-end gap-1 sm:max-w-none",
           className,
         )}
       >
-        <p
-          className="hidden truncate text-caption text-muted-foreground sm:block"
-          title={label}
-        >
-          {label}
-        </p>
-        <Button type="button" variant="ghost" size="sm" onClick={handleSignOut}>
-          Sign out
-        </Button>
+        <div className="flex items-center gap-2">
+          <p
+            className="hidden truncate text-caption text-muted-foreground sm:block"
+            title={label}
+          >
+            {label}
+          </p>
+          {signOutButton}
+        </div>
+        {signOutError && (
+          <p className="text-caption text-destructive" role="alert">
+            {signOutError}
+          </p>
+        )}
       </div>
     );
   }
@@ -93,9 +124,12 @@ export function AuthUserBar({
       <p className="truncate text-caption text-foreground" title={label}>
         {label}
       </p>
-      <Button type="button" variant="ghost" size="sm" onClick={handleSignOut}>
-        Sign out
-      </Button>
+      {signOutButton}
+      {signOutError && (
+        <p className="text-caption text-destructive" role="alert">
+          {signOutError}
+        </p>
+      )}
     </div>
   );
 }

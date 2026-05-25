@@ -69,7 +69,9 @@ Indexes (recommended):
 | `lap_number` | `integer` | 1-based order within session |
 | `lap_time` | `text` | display format `M:SS.t` (e.g. `1:04.2`) |
 
-Index: `track_session_lap_session_id_idx` on `session_id`.
+Indexes: `track_session_lap_session_id_idx` on `session_id`; unique `(session_id, lap_number)`.
+
+Writes use compensating rollback (neon-http has no Drizzle transactions): failed lap insert deletes the new session; failed lap replace restores prior lap rows.
 
 `lapCount`, `averageLap`, and `bestLap` in JSON are computed in `lib/track_sessions/lap-times.ts` + `serializeTrackSession()`.
 

@@ -14,6 +14,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { tracks } from "@/lib/data";
+import { localDateInputValue } from "@/lib/date";
 import { buildTitle } from "@/lib/track_sessions/display";
 import { computeLapStats } from "@/lib/track_sessions/lap-times";
 import type { TrackSessionJson } from "@/lib/track_sessions/serialize";
@@ -40,7 +41,7 @@ const defaultLapTimes = ["1:00.0"];
 const defaultValues: SessionFormValues = {
   trackId: tracks[0]?.id ?? "dniprokart",
   title: "",
-  sessionDate: new Date().toISOString().slice(0, 10),
+  sessionDate: localDateInputValue(),
   published: false,
   lapTimes: [...defaultLapTimes],
 };

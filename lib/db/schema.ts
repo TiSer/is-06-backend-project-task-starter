@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // =============================================================================
@@ -108,6 +109,10 @@ export const trackSessionLap = pgTable(
   },
   (table) => [
     index("track_session_lap_session_id_idx").on(table.sessionId),
+    uniqueIndex("track_session_lap_session_lap_number_uidx").on(
+      table.sessionId,
+      table.lapNumber,
+    ),
     check("track_session_lap_number_positive", sql`${table.lapNumber} >= 1`),
   ],
 );

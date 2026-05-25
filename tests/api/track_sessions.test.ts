@@ -7,6 +7,7 @@ const {
   mockGetSession,
   mockRequireRole,
   mockInsertReturning,
+  mockLapInsertReturning,
   mockInsertValues,
   mockInsert,
   mockSelectLimit,
@@ -17,6 +18,7 @@ const {
   mockFetchLapsBySessionIds,
 } = vi.hoisted(() => {
   const mockInsertReturning = vi.fn();
+  const mockLapInsertReturning = vi.fn();
   const mockInsertValues = vi.fn(() => ({ returning: mockInsertReturning }));
   const mockInsert = vi.fn(() => ({ values: mockInsertValues }));
 
@@ -40,6 +42,7 @@ const {
     mockGetSession: vi.fn(),
     mockRequireRole: vi.fn(),
     mockInsertReturning,
+    mockLapInsertReturning,
     mockInsertValues,
     mockInsert,
     mockSelectLimit,
@@ -168,9 +171,10 @@ describe("POST /api/v1/track_sessions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockInsertReturning.mockResolvedValue([sampleRow]);
+    mockLapInsertReturning.mockResolvedValue(sampleLapRows);
     mockInsertValues
       .mockImplementationOnce(() => ({ returning: mockInsertReturning }))
-      .mockImplementationOnce(() => Promise.resolve(undefined));
+      .mockImplementationOnce(() => ({ returning: mockLapInsertReturning }));
     mockFetchLapsBySessionIds.mockResolvedValue(
       new Map([[sampleRow.id, sampleLapRows]]),
     );

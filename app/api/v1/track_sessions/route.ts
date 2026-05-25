@@ -1,14 +1,16 @@
 import { desc, eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
-import { trackSession, trackSessionLap } from "@/lib/db/schema";
+import { trackSession } from "@/lib/db/schema";
 import {
   badRequest,
   isResponse,
   serverError,
 } from "@/lib/errors";
 import { getSession, requireSession } from "@/lib/rbac";
-import { fetchLapsBySessionIds } from "@/lib/track_sessions/laps-db";
+import {
+  createTrackSessionWithLaps,
+  fetchLapsBySessionIds,
+} from "@/lib/track_sessions/laps-db";
 import { serializeTrackSession } from "@/lib/track_sessions/serialize";
 import {
   createTrackSessionSchema,
@@ -78,44 +80,16 @@ export async function POST(req: Request) {
     }
 
     const data = parsed.data;
-    const now = new Date();
-    const sessionId = nanoid();
+    const { session, laps } = await createTrackSessionWithLaps({
+      authorId: authSession.user.id,
+      trackId: data.trackId,
+      title: data.title,
+      sessionDate: data.sessionDate,
+      published: data.published,
+      laps: data.laps,
+    });
 
-    // neon-http has no Drizzle transaction support — insert session, then laps
-    const [row] = await db
-      .insert(trackSession)
-      .values({
-        id: sessionId,
-        authorId: authSession.user.id,
-        trackId: data.trackId,
-        title: data.title,
-        sessionDate: data.sessionDate,
-        published: data.published,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-
-    try {
-      const lapValues = data.laps.map((lap, index) => ({
-        id: nanoid(),
-        sessionId,
-        lapNumber: index + 1,
-        lapTime: lap.time.trim(),
-        createdAt: now,
-        updatedAt: now,
-      }));
-
-      await db.insert(trackSessionLap).values(lapValues);
-    } catch (lapError) {
-      await db.delete(trackSession).where(eq(trackSession.id, sessionId));
-      throw lapError;
-    }
-
-    const lapsBySession = await fetchLapsBySessionIds([sessionId]);
-    const laps = lapsBySession.get(sessionId) ?? [];
-
-    return Response.json(serializeTrackSession(row, laps), { status: 201 });
+    return Response.json(serializeTrackSession(session, laps), { status: 201 });
   } catch (error) {
     if (isResponse(error)) return error;
     console.error("[v1/track_sessions] POST failed", error);

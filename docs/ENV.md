@@ -25,9 +25,12 @@ echo "BETTER_AUTH_URL=http://localhost:3000"        >> .env.local
 ## Vercel setup
 
 1. Install **Neon** from Vercel Marketplace → connect to project → `DATABASE_URL` auto-populated on **all** environments.
-2. Add `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` manually in Vercel Dashboard → Settings → Environment Variables.
-   - `BETTER_AUTH_URL` for Preview = `${{VERCEL_URL}}` won't work directly; set it per-environment to the deployed URL once you know it (or to your custom domain in production).
-3. Redeploy.
+2. Add **`BETTER_AUTH_SECRET`** and **`BETTER_AUTH_URL`** in Vercel → **Settings** → **Environment Variables** (enable **Production** and **Preview**, and **Build** if offered):
+   - `BETTER_AUTH_SECRET` — `openssl rand -base64 32`
+   - `BETTER_AUTH_URL` — exact site URL, e.g. `https://is-06-backend-project-task-starter.vercel.app` (no trailing slash). Update Preview if you test auth on preview URLs.
+3. **Redeploy** (`vercel --prod` or push to `main`).
+
+Without these, `next build` may fail or auth/API will break at runtime even if the build passes with placeholders.
 
 ## CI
 
@@ -37,11 +40,13 @@ GitHub Actions uses **placeholder** env values just to make `lib/env.ts` parse d
 
 ### `Invalid origin` on sign-up / sign-in
 
-Better Auth compares the browser **Origin** (e.g. `http://localhost:3001`) to `BETTER_AUTH_URL` and `trustedOrigins`.
+Better Auth checks the browser **Origin** against `trustedOrigins`.
 
-1. Open the app at the **same host and port** as `BETTER_AUTH_URL` in `.env.local` (default `http://localhost:3000`), **or** set `BETTER_AUTH_URL` to the URL shown in the address bar.
-2. **Restart** `npm run dev` after changing `.env.local`.
-3. In development, `lib/auth.ts` also trusts `localhost` / `127.0.0.1` on ports `3000` and `3001`.
+**Local:** open the app at the same URL as `BETTER_AUTH_URL` in `.env.local` (default `http://localhost:3000`), or update that variable. Restart `npm run dev`.
+
+**Vercel:** `lib/auth-url.ts` trusts `https://*.vercel.app` and Vercel hostnames (`VERCEL_URL`, etc.). Set `BETTER_AUTH_URL` to your main production URL (not `http://localhost:3000`). Redeploy after changing env vars.
+
+If it still fails, use the **exact** URL from the address bar as `BETTER_AUTH_URL`.
 
 ### Manual row in Neon `user` table
 

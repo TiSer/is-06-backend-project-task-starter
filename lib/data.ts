@@ -1,4 +1,5 @@
 import type { LapTimeRow } from "@/components/lap-time-table";
+import { compareLapTimes } from "@/lib/track_sessions/lap-times";
 
 export type Track = {
   id: string;
@@ -14,6 +15,7 @@ export type Session = {
   title: string;
   lapCount: number;
   averageLap: string;
+  bestLap: string;
   date: string;
 };
 
@@ -64,6 +66,7 @@ export const sessions: Session[] = [
     title: "DniproKart — May 18",
     lapCount: 12,
     averageLap: "1:06.4",
+    bestLap: "1:04.2",
     date: "May 18",
   },
   {
@@ -72,6 +75,7 @@ export const sessions: Session[] = [
     title: "DniproKart — May 12",
     lapCount: 10,
     averageLap: "1:07.1",
+    bestLap: "1:05.1",
     date: "May 12",
   },
   {
@@ -80,6 +84,7 @@ export const sessions: Session[] = [
     title: "Autodrom — May 05",
     lapCount: 14,
     averageLap: "1:14.2",
+    bestLap: "1:12.8",
     date: "May 05",
   },
 ];
@@ -132,17 +137,10 @@ export const galleryPhotos: GalleryPhoto[] = [
 /** High-quality delivery for next/image (sources are ~682px wide). */
 export const galleryImageQuality = 90;
 
-function lapTimeToSeconds(lap: string): number {
-  const [minutes, seconds] = lap.split(":").map(Number);
-  return minutes * 60 + seconds;
-}
-
 export const heroStats = {
   bestLap: lapTimes.reduce(
     (best, row) =>
-      lapTimeToSeconds(row.bestLap) < lapTimeToSeconds(best)
-        ? row.bestLap
-        : best,
+      compareLapTimes(row.bestLap, best) < 0 ? row.bestLap : best,
     lapTimes[0]?.bestLap ?? "—",
   ),
   sessions: String(sessions.length),

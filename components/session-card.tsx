@@ -35,7 +35,8 @@ export function SessionCard({
         <div className="flex min-w-0 flex-col gap-1.5">
           <span className="text-label font-semibold text-foreground">{title}</span>
           <span className="text-caption text-muted-foreground">
-            {lapCount} laps · Best {bestLap} · Avg {averageLap}
+            {lapCount} {lapCount === 1 ? "lap" : "laps"} · Best {bestLap} · Avg{" "}
+            {averageLap}
           </span>
         </div>
         {showActions && (onEdit || onDelete) && (
