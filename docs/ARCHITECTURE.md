@@ -50,8 +50,6 @@ Rules:
 | `author_id` | `text` FK → `user.id` | no | `onDelete: 'cascade'`; maps to `authorId` in JSON |
 | `track_id` | `text` | no | slug, 1–64 chars; maps to `trackId` |
 | `title` | `text` | no | 1–200 chars |
-| `lap_count` | `integer` | no | ≥ 0; maps to `lapCount` |
-| `average_lap` | `text` | no | display string; maps to `averageLap` |
 | `session_date` | `date` | no | calendar day; JSON `sessionDate` as `YYYY-MM-DD` |
 | `published` | `boolean` | no | default `false` |
 | `created_at` | `timestamp` | no | default `now()` |
@@ -62,7 +60,18 @@ Indexes (recommended):
 - `track_session_author_id_idx` on `author_id`
 - `track_session_published_idx` on `published`
 
-`bestLap` is not persisted. Derivation belongs to a future `lap_time` resource or client logic.
+### Domain table — `track_session_lap`
+
+| Column | Drizzle type | Notes |
+| ------ | ------------ | ----- |
+| `id` | `text` PK | `nanoid()` |
+| `session_id` | FK → `track_session.id` | `onDelete: cascade` |
+| `lap_number` | `integer` | 1-based order within session |
+| `lap_time` | `text` | display format `M:SS.t` (e.g. `1:04.2`) |
+
+Index: `track_session_lap_session_id_idx` on `session_id`.
+
+`lapCount`, `averageLap`, and `bestLap` in JSON are computed in `lib/track_sessions/lap-times.ts` + `serializeTrackSession()`.
 
 ### Better Auth tables (fixed)
 
@@ -146,9 +155,8 @@ Handler maps DB row → API `TrackSession`:
 
 - `author_id` → `authorId`
 - `track_id` → `trackId`
-- `lap_count` → `lapCount`
-- `average_lap` → `averageLap`
 - `session_date` → `sessionDate` (ISO date string)
+- `track_session_lap` rows → `laps[]`; stats → `lapCount`, `averageLap`, `bestLap`
 - `created_at` / `updated_at` → ISO datetime strings
 
 ---

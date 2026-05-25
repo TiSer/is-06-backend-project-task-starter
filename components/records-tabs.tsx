@@ -60,6 +60,7 @@ export function RecordsTabs({ tracks }: RecordsTabsProps) {
                     title={session.title}
                     lapCount={session.lapCount}
                     averageLap={session.averageLap}
+                    bestLap={session.averageLap}
                   />
                 ))
               ) : (

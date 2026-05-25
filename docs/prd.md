@@ -14,7 +14,7 @@
 | DB table | `track_session` | Singular SQL table; Drizzle export `trackSession` |
 | Auth `session` table | `session` | **Better Auth only** — not our domain entity |
 
-**Not stored on the row:** `bestLap` — derived dynamically (from per-lap data when that exists, or client/UI logic until then). Homework v1 stores `lapCount` + `averageLap` only.
+**Per-lap storage:** `track_session_lap` rows (`lapNumber`, `lapTime`). **`lapCount`**, **`averageLap`**, and **`bestLap`** are computed in API responses (not stored on `track_session`).
 
 ---
 
@@ -88,8 +88,6 @@ REST API for **track-day sessions**: one row per circuit visit (track, title, la
 | `authorId` | `text` FK → `user.id` | `onDelete: cascade` |
 | `trackId` | `text` | slug, e.g. `dniprokart`; 1–64 chars |
 | `title` | `text` | display title, 1–200 chars |
-| `lapCount` | `integer` | ≥ 0 |
-| `averageLap` | `text` | display format, e.g. `1:06.4`; 1–16 chars |
 | `sessionDate` | `date` or `text` | calendar day of track day (ISO `YYYY-MM-DD` in JSON) |
 | `published` | `boolean` | default `false` |
 | `createdAt` | `timestamp` | server default `now()` |
@@ -102,14 +100,13 @@ REST API for **track-day sessions**: one row per circuit visit (track, title, la
 ```ts
 // lib/validation/track_sessions.ts
 
-// CreateTrackSession (POST body) — no authorId, no bestLap
+// CreateTrackSession (POST body) — no authorId
 {
   trackId: string;      // 1..64, slug
   title: string;        // 1..200
-  lapCount: number;     // int, >= 0
-  averageLap: string;   // 1..16, e.g. "1:06.4"
   sessionDate: string;  // ISO date YYYY-MM-DD
   published?: boolean;  // default false
+  laps: { time: string }[];  // 1..200 laps, format M:SS.t e.g. "1:04.2"
 }
 
 // UpdateTrackSession (PATCH body) — partial, at least one key
@@ -128,10 +125,12 @@ Partial<CreateTrackSession>
   authorId: string;
   trackId: string;
   title: string;
-  lapCount: number;
-  averageLap: string;
   sessionDate: string;  // ISO date
   published: boolean;
+  laps: { lapNumber: number; time: string }[];
+  lapCount: number;     // derived
+  averageLap: string;   // derived
+  bestLap: string;      // derived
   createdAt: string;    // ISO datetime
   updatedAt: string;
 }
@@ -157,10 +156,13 @@ Content-Type: application/json
 {
   "trackId": "dniprokart",
   "title": "DniproKart — May 18",
-  "lapCount": 12,
-  "averageLap": "1:06.4",
   "sessionDate": "2026-05-18",
-  "published": false
+  "published": false,
+  "laps": [
+    { "time": "1:06.0" },
+    { "time": "1:04.2" },
+    { "time": "1:05.5" }
+  ]
 }
 ```
 

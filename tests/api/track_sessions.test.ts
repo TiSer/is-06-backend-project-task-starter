@@ -14,6 +14,7 @@ const {
   mockUpdateReturning,
   mockUpdate,
   mockDelete,
+  mockFetchLapsBySessionIds,
 } = vi.hoisted(() => {
   const mockInsertReturning = vi.fn();
   const mockInsertValues = vi.fn(() => ({ returning: mockInsertReturning }));
@@ -32,6 +33,8 @@ const {
   const mockDeleteWhere = vi.fn().mockResolvedValue(undefined);
   const mockDelete = vi.fn(() => ({ where: mockDeleteWhere }));
 
+  const mockFetchLapsBySessionIds = vi.fn();
+
   return {
     mockRequireSession: vi.fn(),
     mockGetSession: vi.fn(),
@@ -44,6 +47,7 @@ const {
     mockUpdateReturning,
     mockUpdate,
     mockDelete,
+    mockFetchLapsBySessionIds,
   };
 });
 
@@ -68,6 +72,20 @@ vi.mock("@/lib/db", () => ({
     delete: mockDelete,
   },
 }));
+
+vi.mock("nanoid", () => ({
+  nanoid: () => "ts_sample01",
+}));
+
+vi.mock("@/lib/track_sessions/laps-db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/track_sessions/laps-db")>();
+  return {
+    ...actual,
+    fetchLapsBySessionIds: (...args: Parameters<typeof actual.fetchLapsBySessionIds>) =>
+      mockFetchLapsBySessionIds(...args),
+    replaceLapsForSession: vi.fn(),
+  };
+});
 
 import { POST as postTrackSessions } from "@/app/api/v1/track_sessions/route";
 import { PATCH as patchTrackSessionById } from "@/app/api/v1/track_sessions/[id]/route";
@@ -97,21 +115,37 @@ const sampleRow = {
   authorId: "user-owner",
   trackId: "dniprokart",
   title: "DniproKart — May 18",
-  lapCount: 12,
-  averageLap: "1:06.4",
   sessionDate: "2026-05-18",
   published: false,
   createdAt: new Date("2026-05-18T10:00:00.000Z"),
   updatedAt: new Date("2026-05-18T10:00:00.000Z"),
 };
 
+const sampleLapRows = [
+  {
+    id: "lap_1",
+    sessionId: sampleRow.id,
+    lapNumber: 1,
+    lapTime: "1:06.0",
+    createdAt: new Date("2026-05-18T10:00:00.000Z"),
+    updatedAt: new Date("2026-05-18T10:00:00.000Z"),
+  },
+  {
+    id: "lap_2",
+    sessionId: sampleRow.id,
+    lapNumber: 2,
+    lapTime: "1:04.2",
+    createdAt: new Date("2026-05-18T10:00:00.000Z"),
+    updatedAt: new Date("2026-05-18T10:00:00.000Z"),
+  },
+];
+
 const validCreateBody = {
   trackId: "dniprokart",
   title: "DniproKart — May 18",
-  lapCount: 12,
-  averageLap: "1:06.4",
   sessionDate: "2026-05-18",
   published: false,
+  laps: [{ time: "1:06.0" }, { time: "1:04.2" }],
 };
 
 function postRequest(body: unknown) {
@@ -134,6 +168,12 @@ describe("POST /api/v1/track_sessions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockInsertReturning.mockResolvedValue([sampleRow]);
+    mockInsertValues
+      .mockImplementationOnce(() => ({ returning: mockInsertReturning }))
+      .mockImplementationOnce(() => Promise.resolve(undefined));
+    mockFetchLapsBySessionIds.mockResolvedValue(
+      new Map([[sampleRow.id, sampleLapRows]]),
+    );
   });
 
   it("returns 201 for valid body with session", async () => {
@@ -145,14 +185,10 @@ describe("POST /api/v1/track_sessions", () => {
     const body = await res.json();
     expect(body.id).toBe(sampleRow.id);
     expect(body.authorId).toBe("user-owner");
-    expect(body.trackId).toBe("dniprokart");
+    expect(body.lapCount).toBe(2);
+    expect(body.bestLap).toBe("1:04.2");
+    expect(body.laps).toHaveLength(2);
     expect(mockInsert).toHaveBeenCalled();
-    expect(mockInsertValues).toHaveBeenCalledWith(
-      expect.objectContaining({
-        authorId: "user-owner",
-        trackId: "dniprokart",
-      }),
-    );
   });
 
   it("returns 401 when unauthenticated", async () => {
@@ -181,6 +217,21 @@ describe("POST /api/v1/track_sessions", () => {
     expect(body.error).toBe("BadRequest");
     expect(mockInsert).not.toHaveBeenCalled();
   });
+
+  it("returns 400 when laps are missing", async () => {
+    mockRequireSession.mockResolvedValue(ownerSession);
+
+    const res = await postTrackSessions(
+      postRequest({
+        trackId: "dniprokart",
+        title: "Test",
+        sessionDate: "2026-05-18",
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
 });
 
 describe("PATCH /api/v1/track_sessions/:id", () => {
@@ -190,6 +241,9 @@ describe("PATCH /api/v1/track_sessions/:id", () => {
     mockUpdateReturning.mockResolvedValue([
       { ...sampleRow, title: "Updated title" },
     ]);
+    mockFetchLapsBySessionIds.mockResolvedValue(
+      new Map([[sampleRow.id, sampleLapRows]]),
+    );
   });
 
   it("returns 403 when session user is not the owner", async () => {
@@ -217,6 +271,7 @@ describe("PATCH /api/v1/track_sessions/:id", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.title).toBe("Updated title");
+    expect(body.bestLap).toBe("1:04.2");
     expect(mockUpdate).toHaveBeenCalled();
   });
 });

@@ -28,12 +28,6 @@ export function SidebarNav() {
           />
         ))}
       </nav>
-      <div className="border-t border-border px-6 py-4">
-        <p className="text-[0.65rem] font-medium tracking-widest text-muted-foreground uppercase">
-          Track day ready
-        </p>
-        <p className="mt-1 text-caption text-primary">Season 2026</p>
-      </div>
     </aside>
   );
 }

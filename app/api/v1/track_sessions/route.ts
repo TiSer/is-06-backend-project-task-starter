@@ -1,13 +1,14 @@
 import { desc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
-import { trackSession } from "@/lib/db/schema";
+import { trackSession, trackSessionLap } from "@/lib/db/schema";
 import {
   badRequest,
   isResponse,
   serverError,
 } from "@/lib/errors";
 import { getSession, requireSession } from "@/lib/rbac";
+import { fetchLapsBySessionIds } from "@/lib/track_sessions/laps-db";
 import { serializeTrackSession } from "@/lib/track_sessions/serialize";
 import {
   createTrackSessionSchema,
@@ -44,8 +45,12 @@ export async function GET(req: Request) {
       .limit(limit)
       .offset(offset);
 
+    const lapsBySession = await fetchLapsBySessionIds(rows.map((r) => r.id));
+
     return Response.json({
-      items: rows.map(serializeTrackSession),
+      items: rows.map((row) =>
+        serializeTrackSession(row, lapsBySession.get(row.id) ?? []),
+      ),
       limit,
       offset,
     });
@@ -74,16 +79,16 @@ export async function POST(req: Request) {
 
     const data = parsed.data;
     const now = new Date();
+    const sessionId = nanoid();
 
+    // neon-http has no Drizzle transaction support — insert session, then laps
     const [row] = await db
       .insert(trackSession)
       .values({
-        id: nanoid(),
+        id: sessionId,
         authorId: authSession.user.id,
         trackId: data.trackId,
         title: data.title,
-        lapCount: data.lapCount,
-        averageLap: data.averageLap,
         sessionDate: data.sessionDate,
         published: data.published,
         createdAt: now,
@@ -91,7 +96,26 @@ export async function POST(req: Request) {
       })
       .returning();
 
-    return Response.json(serializeTrackSession(row), { status: 201 });
+    try {
+      const lapValues = data.laps.map((lap, index) => ({
+        id: nanoid(),
+        sessionId,
+        lapNumber: index + 1,
+        lapTime: lap.time.trim(),
+        createdAt: now,
+        updatedAt: now,
+      }));
+
+      await db.insert(trackSessionLap).values(lapValues);
+    } catch (lapError) {
+      await db.delete(trackSession).where(eq(trackSession.id, sessionId));
+      throw lapError;
+    }
+
+    const lapsBySession = await fetchLapsBySessionIds([sessionId]);
+    const laps = lapsBySession.get(sessionId) ?? [];
+
+    return Response.json(serializeTrackSession(row, laps), { status: 201 });
   } catch (error) {
     if (isResponse(error)) return error;
     console.error("[v1/track_sessions] POST failed", error);

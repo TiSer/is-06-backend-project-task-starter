@@ -9,6 +9,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { mainNavItems } from "@/lib/nav-config";
 import { isActiveNavPath } from "@/lib/navigation";
 
+/** Top bar (auth + mobile menu) and slide-out navigation. */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();

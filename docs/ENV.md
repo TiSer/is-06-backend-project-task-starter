@@ -33,6 +33,20 @@ echo "BETTER_AUTH_URL=http://localhost:3000"        >> .env.local
 
 GitHub Actions uses **placeholder** env values just to make `lib/env.ts` parse during `lint` / `typecheck` / `test` / `build`. No real DB is reached. Migrations against the **production** DB are run by a separate workflow (out of scope for the reference repo — add when you go to prod).
 
+## Auth troubleshooting
+
+### `Invalid origin` on sign-up / sign-in
+
+Better Auth compares the browser **Origin** (e.g. `http://localhost:3001`) to `BETTER_AUTH_URL` and `trustedOrigins`.
+
+1. Open the app at the **same host and port** as `BETTER_AUTH_URL` in `.env.local` (default `http://localhost:3000`), **or** set `BETTER_AUTH_URL` to the URL shown in the address bar.
+2. **Restart** `npm run dev` after changing `.env.local`.
+3. In development, `lib/auth.ts` also trusts `localhost` / `127.0.0.1` on ports `3000` and `3001`.
+
+### Manual row in Neon `user` table
+
+Email/password login needs a matching row in **`account`** with a **hashed** password (created by sign-up, not a plain SQL insert). Prefer **Sign up** in the UI, or delete the manual `user` row and register again.
+
 ## Rotation
 
 - **`BETTER_AUTH_SECRET`** rotation invalidates all sessions. Plan accordingly.

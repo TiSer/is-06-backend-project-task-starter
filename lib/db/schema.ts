@@ -83,8 +83,6 @@ export const trackSession = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     trackId: text("track_id").notNull(),
     title: text("title").notNull(),
-    lapCount: integer("lap_count").notNull(),
-    averageLap: text("average_lap").notNull(),
     sessionDate: date("session_date").notNull(),
     published: boolean("published").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -93,12 +91,27 @@ export const trackSession = pgTable(
   (table) => [
     index("track_session_author_id_idx").on(table.authorId),
     index("track_session_published_idx").on(table.published),
-    check(
-      "track_session_lap_count_non_negative",
-      sql`${table.lapCount} >= 0`,
-    ),
+  ],
+);
+
+export const trackSessionLap = pgTable(
+  "track_session_lap",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => trackSession.id, { onDelete: "cascade" }),
+    lapNumber: integer("lap_number").notNull(),
+    lapTime: text("lap_time").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("track_session_lap_session_id_idx").on(table.sessionId),
+    check("track_session_lap_number_positive", sql`${table.lapNumber} >= 1`),
   ],
 );
 
 export type TrackSession = typeof trackSession.$inferSelect;
 export type NewTrackSession = typeof trackSession.$inferInsert;
+export type TrackSessionLap = typeof trackSessionLap.$inferSelect;

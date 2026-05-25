@@ -15,6 +15,10 @@ import {
   requireSession,
 } from "@/lib/rbac";
 import { canReadTrackSession } from "@/lib/track_sessions/access";
+import {
+  fetchLapsBySessionIds,
+  replaceLapsForSession,
+} from "@/lib/track_sessions/laps-db";
 import { serializeTrackSession } from "@/lib/track_sessions/serialize";
 import {
   trackSessionIdSchema,
@@ -55,7 +59,10 @@ export async function GET(req: Request, context: RouteContext) {
       return notFound("Track session");
     }
 
-    return Response.json(serializeTrackSession(loaded.row));
+    const lapsBySession = await fetchLapsBySessionIds([loaded.row.id]);
+    const laps = lapsBySession.get(loaded.row.id) ?? [];
+
+    return Response.json(serializeTrackSession(loaded.row, laps));
   } catch (error) {
     if (isResponse(error)) return error;
     console.error("[v1/track_sessions/:id] GET failed", error);
@@ -87,13 +94,12 @@ export async function PATCH(req: Request, context: RouteContext) {
     }
 
     const data = parsed.data;
+
     const [row] = await db
       .update(trackSession)
       .set({
         ...(data.trackId !== undefined ? { trackId: data.trackId } : {}),
         ...(data.title !== undefined ? { title: data.title } : {}),
-        ...(data.lapCount !== undefined ? { lapCount: data.lapCount } : {}),
-        ...(data.averageLap !== undefined ? { averageLap: data.averageLap } : {}),
         ...(data.sessionDate !== undefined
           ? { sessionDate: data.sessionDate }
           : {}),
@@ -107,7 +113,14 @@ export async function PATCH(req: Request, context: RouteContext) {
       return notFound("Track session");
     }
 
-    return Response.json(serializeTrackSession(row));
+    if (data.laps !== undefined) {
+      await replaceLapsForSession(row.id, data.laps);
+    }
+
+    const lapsBySession = await fetchLapsBySessionIds([row.id]);
+    const laps = lapsBySession.get(row.id) ?? [];
+
+    return Response.json(serializeTrackSession(row, laps));
   } catch (error) {
     if (isResponse(error)) return error;
     console.error("[v1/track_sessions/:id] PATCH failed", error);

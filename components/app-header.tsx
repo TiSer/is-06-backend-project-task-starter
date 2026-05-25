@@ -1,4 +1,7 @@
+"use client";
+
 import { Menu } from "lucide-react";
+import { AuthUserBar } from "@/components/auth/auth-user-bar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -16,25 +19,28 @@ export function AppHeader({
   return (
     <header
       className={cn(
-        "flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-4 lg:hidden",
-        className
+        "sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card/95 px-4 backdrop-blur-md lg:px-8",
+        className,
       )}
     >
-      <span className="text-sm font-extrabold tracking-wide text-primary uppercase">
+      <span className="text-sm font-extrabold tracking-wide text-primary uppercase lg:hidden">
         Ninja
       </span>
-      {showMenu && onMenuClick != null && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onMenuClick}
-          aria-label="Open navigation menu"
-          className="size-8 rounded-sm bg-elevated hover:bg-muted"
-        >
-          <Menu className="size-[18px] text-primary" />
-        </Button>
-      )}
+      <div className="ml-auto flex items-center gap-2">
+        <AuthUserBar layout="header" />
+        {showMenu && onMenuClick != null && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onMenuClick}
+            aria-label="Open navigation menu"
+            className="size-8 rounded-sm bg-elevated hover:bg-muted lg:hidden"
+          >
+            <Menu className="size-[18px] text-primary" />
+          </Button>
+        )}
+      </div>
     </header>
   );
 }
