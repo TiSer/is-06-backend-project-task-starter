@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import {
   getBetterAuthBaseUrl,
-  getBetterAuthTrustedOrigins,
+  resolveBetterAuthTrustedOrigins,
 } from "@/lib/auth-url";
 import { db } from "./db";
 import { env } from "./env";
@@ -20,7 +20,7 @@ export const auth = betterAuth({
   },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: getBetterAuthBaseUrl(),
-  trustedOrigins: getBetterAuthTrustedOrigins(),
+  trustedOrigins: resolveBetterAuthTrustedOrigins,
 });
 
 export type AuthSession = Awaited<ReturnType<typeof auth.api.getSession>>;

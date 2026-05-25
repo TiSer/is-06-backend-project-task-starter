@@ -44,9 +44,9 @@ Better Auth checks the browser **Origin** against `trustedOrigins`.
 
 **Local:** open the app at the same URL as `BETTER_AUTH_URL` in `.env.local` (default `http://localhost:3000`), or update that variable. Restart `npm run dev`.
 
-**Vercel:** `lib/auth-url.ts` trusts `https://*.vercel.app` and Vercel hostnames (`VERCEL_URL`, etc.). Set `BETTER_AUTH_URL` to your main production URL (not `http://localhost:3000`). Redeploy after changing env vars.
+**Vercel:** Set `BETTER_AUTH_URL` to your production URL (e.g. `https://is-06-backend-project-task-starter.vercel.app`) — **not** `http://localhost:3000`. `lib/auth-url.ts` resolves trusted origins per request and ignores localhost env on Vercel, but the env var should still be correct for cookies. Redeploy after changing.
 
-If it still fails, use the **exact** URL from the address bar as `BETTER_AUTH_URL`.
+Logs showing `POST /api/auth/sign-up/email` **403** with `Invalid origin` almost always mean `BETTER_AUTH_URL` still points at localhost.
 
 ### Manual row in Neon `user` table
 
